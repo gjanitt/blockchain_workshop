@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hello World DApp</title>
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js@1.0.0-beta.36/dist/web3.min.js"></script>
+</head>
+<body>
+    <h1>Hello World DApp</h1>
+    <p>Current Message: <span id="message">Loading...</span></p>
+    <input type="text" id="newMessage" placeholder="New Message">
+    <button onclick="setMessage()">Set Message</button>
+
+    <script>
+        // Connect to MetaMask
+        if (typeof window.ethereum !== 'undefined') {
+            window.web3 = new Web3(window.ethereum);
+            window.ethereum.enable();
+        }
+
+        const contractAddress = '0x292286f1cbF53342D9d3DD8a333a6DDBA5eBab7C'; // Replace with your deployed contract address
+        const abi = [
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "newMessage",
+                "type": "string"
+            }
+        ],
+        "name": "setMessage",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getMessage",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "message",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+];
+
+        const contract = new web3.eth.Contract(abi, contractAddress);
+
+        // Function to get the current message
+        async function getMessage() {
+            const message = await contract.methods.message().call();
+            document.getElementById('message').innerText = message;
+        }
+
+        // Function to set a new message
+        async function setMessage() {
+            const accounts = await web3.eth.getAccounts();
+            const newMessage = document.getElementById('newMessage').value;
+            await contract.methods.setMessage(newMessage).send({ from: accounts[0] });
+            getMessage();
+        }
+
+        // Load the initial message
+        getMessage();
+    </script>
+</body>
+</html>

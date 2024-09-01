@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voting DApp</title>
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js@1.0.0-beta.36/dist/web3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h2, h3 {
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        input[type="number"], input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #ownerSection {
+            margin-top: 20px;
+        }
+        canvas {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Voting DApp</h1>
+
+        <h2>Candidates</h2>
+        <ul id="candidateList"></ul>
+
+        <h3>Vote for a Candidate</h3>
+        <input type="number" id="candidateId" placeholder="Candidate ID">
+        <button onclick="vote()">Vote</button>
+
+        <div id="ownerSection" class="hidden">
+            <h3>Add a Candidate (Owner Only)</h3>
+            <input type="text" id="candidateName" placeholder="Candidate Name">
+            <button onclick="addCandidate()">Add Candidate</button>
+        </div>
+
+        <h3>Vote Count Bar Graph</h3>
+        <canvas id="voteChart"></canvas>
+    </div>
+
+    <script>
+        // Connect to MetaMask
+        if (typeof window.ethereum !== 'undefined') {
+            window.web3 = new Web3(window.ethereum);
+            window.ethereum.enable();
+        }
+
+        const contractAddress = '0xC8C18659a79276759972eab3D7b7474915DD5EFC'; // Replace with your deployed contract address
+        const abi = [
+            {
+                "inputs": [],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    }
+                ],
+                "name": "addCandidate",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "candidates",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "id",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "voteCount",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "candidatesCount",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "candidateId",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "getCandidate",
+                "outputs": [
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "voteCount",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "isOwner",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "owner",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "candidateId",
+                        "type": "uint256"
+                    }
+                ],
+                "name": "vote",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "voters",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        const contract = new web3.eth.Contract(abi, contractAddress);
+
+        // Initialize the chart
+        const ctx = document.getElementById('voteChart').getContext('2d');
+        const voteChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Votes',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Function to load and display all candidates
+        async function loadCandidates() {
+            const candidatesCount = await contract.methods.candidatesCount().call();
+            const candidateList = document.getElementById('candidateList');
+            candidateList.innerHTML = '';
+
+            const labels = [];
+            const data = [];
+
+            for (let i = 1; i <= candidatesCount; i++) {
+                const candidate = await contract.methods.getCandidate(i).call();
+                const listItem = document.createElement('li');
+                listItem.textContent = `ID: ${i} | Name: ${candidate[0]} | Votes: ${candidate[1]}`;
+                candidateList.appendChild(listItem);
+
+                // Add data for the chart
+                labels.push(candidate[0]);
+                data.push(candidate[1]);
+            }
+
+            // Update the chart
+            voteChart.data.labels = labels;
+            voteChart.data.datasets[0].data = data;
+            voteChart.update();
+        }
+
+        // Function to vote for a candidate
+        async function vote() {
+            const accounts = await web3.eth.getAccounts();
+            const candidateId = document.getElementById('candidateId').value;
+            await contract.methods.vote(candidateId).send({ from: accounts[0] });
+            loadCandidates();
+        }
+
+        // Function to add a new candidate (only owner)
+        async function addCandidate() {
+            const accounts = await web3.eth.getAccounts();
+            const candidateName = document.getElementById('candidateName').value;
+            await contract.methods.addCandidate(candidateName).send({ from: accounts[0] });
+            loadCandidates();
+        }
+
+        // Function to check if the current user is the owner
+        async function checkOwner() {
+            const accounts = await web3.eth.getAccounts();
+            const isOwner = await contract.methods.isOwner().call({ from: accounts[0] });
+            if (isOwner) {
+                document.getElementById('ownerSection').classList.remove('hidden');
+            } else {
+                document.getElementById('ownerSection').classList.add('hidden');
+            }
+        }
+
+        // Load initial candidates and check if the user is the owner
+        loadCandidates();
+        checkOwner();
+    </script>
+</body>
+</html>
